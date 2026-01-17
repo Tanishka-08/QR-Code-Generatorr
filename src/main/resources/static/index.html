@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .container {
+            border: 1px solid #ddd;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #result {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .radio-group {
+            margin-bottom: 1rem;
+        }
+
+        .radio-group label {
+            display: inline;
+            margin-right: 1rem;
+            cursor: pointer;
+        }
+
+        .input-section {
+            display: none;
+        }
+
+        .input-section.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>QR Code Generator</h1>
+        <p>Generate a QR Code for:</p>
+
+        <div class="radio-group">
+            <label><input type="radio" name="type" value="text" checked onclick="toggleInput('text')"> Plain
+                Text</label>
+            <label><input type="radio" name="type" value="url" onclick="toggleInput('url')"> Website URL</label>
+            <label><input type="radio" name="type" value="image" onclick="toggleInput('image')"> Image Upload</label>
+            <label><input type="radio" name="type" value="pdf" onclick="toggleInput('pdf')"> PDF Document</label>
+        </div>
+
+        <form id="uploadForm">
+            <!-- Text Input -->
+            <div id="text-section" class="input-section active">
+                <div class="form-group">
+                    <label for="textContent">Enter Text:</label>
+                    <input type="text" id="textContent" name="textContent" placeholder="Hello World">
+                </div>
+            </div>
+
+            <!-- URL Input -->
+            <div id="url-section" class="input-section">
+                <div class="form-group">
+                    <label for="urlContent">Enter URL:</label>
+                    <input type="url" id="urlContent" name="urlContent" placeholder="https://example.com">
+                </div>
+            </div>
+
+            <!-- Image Input -->
+            <div id="image-section" class="input-section">
+                <div class="form-group">
+                    <label for="image">Select Image:</label>
+                    <input type="file" id="image" name="image" accept="image/*">
+                    <small>Supported formats: JPG, PNG</small>
+                </div>
+            </div>
+
+            <!-- PDF Input -->
+            <div id="pdf-section" class="input-section">
+                <div class="form-group">
+                    <label for="pdf">Select PDF:</label>
+                    <input type="file" id="pdf" name="pdf" accept="application/pdf">
+                </div>
+            </div>
+
+            <button type="submit">Generate QR Code</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Check if running from file system
+        if (window.location.protocol === 'file:') {
+            document.body.innerHTML = '<div style="color: red; padding: 2rem; font-size: 1.2rem;">' +
+                '<strong>Error:</strong> You are opening this file directly.<br>' +
+                'Please access the application via <code>http://localhost:8080/index.html</code><br>' +
+                'Make sure the server is running via <code>mvn spring-boot:run</code>' +
+                '</div>';
+        }
+
+        function toggleInput(type) {
+            document.querySelectorAll('.input-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(type + '-section').classList.add('active');
+
+            // Clear required attributes
+            document.getElementById('textContent').required = false;
+            document.getElementById('urlContent').required = false;
+            document.getElementById('image').required = false;
+            document.getElementById('pdf').required = false;
+
+            // Set required for current
+            if (type === 'text') document.getElementById('textContent').required = true;
+            if (type === 'url') document.getElementById('urlContent').required = true;
+            if (type === 'image') document.getElementById('image').required = true;
+            if (type === 'pdf') document.getElementById('pdf').required = true;
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('result');
+            const type = document.querySelector('input[name="type"]:checked').value;
+            const formData = new FormData();
+
+            formData.append('type', type);
+
+            if (type === 'text') {
+                formData.append('content', document.getElementById('textContent').value);
+            } else if (type === 'url') {
+                formData.append('content', document.getElementById('urlContent').value);
+            } else if (type === 'image') {
+                const imageFile = document.getElementById('image').files[0];
+                if (!imageFile) {
+                    alert('Please select an image file');
+                    return;
+                }
+                formData.append('image', imageFile);
+            } else if (type === 'pdf') {
+                const pdfFile = document.getElementById('pdf').files[0];
+                if (!pdfFile) {
+                    alert('Please select a PDF file');
+                    return;
+                }
+                // Reuse 'image' parameter name on backend for simplicity or append as 'image'
+                formData.append('image', pdfFile);
+            }
+
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.textContent = 'Generating...';
+
+                const response = await fetch('/api/qr/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div style="text-align: center;">
+                            <h3 style="color: green">Success!</h3>
+                            <p>${data.message}</p>
+                            <img src="${data.qrCodeUrl}" alt="QR Code" style="max-width: 300px; display: block; margin: 1rem auto; border: 1px solid #ddd; padding: 5px;">
+                            <a href="${data.qrCodeUrl}" download="qrcode.png" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Download QR Code</a>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red"><strong>Error (${response.status}):</strong> ${data.error || 'Unknown error'}</p>`;
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                resultDiv.innerHTML = `<p style="color: red"><strong>Connection Failed:</strong> ${error.message}<br>` +
+                    `Is the server running? Check your terminal.</p>`;
+            }
+        });
+    </script>
+</body>
+
+</html>
