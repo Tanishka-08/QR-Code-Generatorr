@@ -1,4 +1,4 @@
-# QRgeneraterrrrrr
+# QR-Code-Generatorr
 
 A Spring Boot–based QR Code Generator that supports:
 
